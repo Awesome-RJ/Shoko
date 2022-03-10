@@ -90,7 +90,7 @@ def gban(update, context):
         evidence_img = upload_image(evidence_img)
     else:
         evidence = message.reply_to_message.text
-        
+
     if not user_id:
         message.reply_text("You don't seem to be referring to a user.")
         return
@@ -128,7 +128,7 @@ def gban(update, context):
     if user_chat.first_name == "":
         message.reply_text("This is a deleted account! no point to gban them...")
         return
-    
+
     if not reason:
         message.reply_text(
             "Global Ban requires a reason to do so, why not send me one?"
@@ -188,22 +188,22 @@ def gban(update, context):
             )
 
         return
-    
+
     banner = update.effective_user
     bannerid = banner.id
     bannername = banner.first_name
     reason = f"{reason} // GBanned by {bannername} id {bannerid}"
-    
+
     if chat.type != 'private':
             chat_origin = "<b>{} ({})</b>".format(
             html.escape(chat.title), chat.id)
     else:
         chat_origin = "<b>{}</b>".format(chat.id)
-        
+
     if message.reply_to_message.photo:
         evidence = f"<img src='{evidence_img}'>"
     else:
-         evidence = evidence  
+         evidence = evidence
     EVIDENSE_NEW_GBAN = f"<strong>New Global Ban</strong> \
                         \n<strong>Originated from:</strong> <code>{chat_origin}</code> \
                         \n<strong>Sudo Admin:</strong> {mention_html(banner.id, banner.first_name)} \
@@ -211,11 +211,11 @@ def gban(update, context):
                         \n<strong>ID:</strong> <code>{user_chat.id}</code> \
                         \n<strong>Reason:</strong> {reason} \
                         \n\n<strong>Evidence:</strong> <br>\n{evidence}"
-    
+
     page = Shoko_gban.post(title=f"Shoko-gban-{user_chat.id}", author=f"{banner.first_name} ({banner.id})", text=EVIDENSE_NEW_GBAN)
     evidence_link = page.get('url')
     evidence_link = "<a href='{}'>{}</a>".format(evidence_link, f"Shoko GBanned // user_id: {user_chat.id}")
-    
+
     message.reply_text(
         f"<b>Beginning of Global Ban for</b> {mention_html(user_chat.id, user_chat.first_name)}"
         f"\n<b>With ID</b>: <code>{user_chat.id}</code>"
@@ -225,8 +225,8 @@ def gban(update, context):
         disable_web_page_preview=True,
     )
     starting_usermsg = f"""<b>You've been globally banned</b>\n<b>Reason:</b> {reason}\n<b>Global Ban log:</b> <a href="https://t.me/stellagban">here</a>\n<b>Appeal:</b> <a href="https://t.me/zerotwopmbot">here</a>"""
-    
-   
+
+
     try:
         if chat.type != 'private':
             chat_origin = "<b>{} ({})</b>".format(
@@ -251,14 +251,14 @@ def gban(update, context):
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
-        
-        
-        
+
+
+
     except Exception:
         context.bot.send_message(ERROR_DUMP, "<b>[Error]</b>"
                                     "\nFailed to Log gban user."
                                     )
-    
+
     try:
         context.bot.send_message(user_chat.id, starting_usermsg, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
     except Exception:
@@ -272,9 +272,7 @@ def gban(update, context):
     try:
         context.bot.kick_chat_member(chat.id, user_chat.id)
     except BadRequest as excp:
-        if excp.message in GBAN_ERRORS:
-            pass
-        
+        pass
     sql.gban_user(user_id, user_chat.username or user_chat.first_name, reason)
     
     
@@ -396,17 +394,14 @@ def gbanlist(update, context):
 def check_and_ban(update, user_id, should_message=True):
 
     try:
-        spmban = spamwtc.get_ban(int(user_id))
-        if spmban:
+        if spmban := spamwtc.get_ban(int(user_id)):
             update.effective_chat.kick_member(user_id)
             if should_message:
                 update.effective_message.reply_text(
                     f"This person has been detected as spambot by @SpamWatch and has been removed!\nReason: <code>{spmban.reason}</code>",
                     parse_mode=ParseMode.HTML,
                 )
-                return
-            else:
-                return
+            return
     except Exception:
         pass
 
@@ -429,25 +424,28 @@ def check_and_ban(update, user_id, should_message=True):
 def enforce_gban(update, context):
     # Not using @restrict handler to avoid spamming - just ignore if cant gban.
     if (
-        sql.does_chat_gban(update.effective_chat.id)
-        and update.effective_chat.get_member(context.bot.id).can_restrict_members
+        not sql.does_chat_gban(update.effective_chat.id)
+        or not update.effective_chat.get_member(
+            context.bot.id
+        ).can_restrict_members
     ):
-        user = update.effective_user
-        chat = update.effective_chat
-        msg = update.effective_message
+        return
+    user = update.effective_user
+    chat = update.effective_chat
+    msg = update.effective_message
 
+    if user and not is_user_admin(chat, user.id):
+        check_and_ban(update, user.id)
+
+    if msg.new_chat_members:
+        new_members = update.effective_message.new_chat_members
+        for mem in new_members:
+            check_and_ban(update, mem.id)
+
+    if msg.reply_to_message:
+        user = msg.reply_to_message.from_user
         if user and not is_user_admin(chat, user.id):
-            check_and_ban(update, user.id)
-
-        if msg.new_chat_members:
-            new_members = update.effective_message.new_chat_members
-            for mem in new_members:
-                check_and_ban(update, mem.id)
-
-        if msg.reply_to_message:
-            user = msg.reply_to_message.from_user
-            if user and not is_user_admin(chat, user.id):
-                check_and_ban(update, user.id, should_message=False)
+            check_and_ban(update, user.id, should_message=False)
 
 @run_async
 @user_admin

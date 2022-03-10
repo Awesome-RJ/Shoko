@@ -25,12 +25,15 @@ async def walld(strin):
     if len(strin.split()) > 1:
         strin = '+'.join(strin.split())
     url = 'https://wall.alphacoders.com/search.php?search='
-    none_got = ['https://wall.alphacoders.com/finding_wallpapers.php']
-    none_got.append('https://wall.alphacoders.com/search-no-results.php')
-    page_link = 'https://wall.alphacoders.com/search.php?search={}&page={}'
     resp = await soup(f'{url}{strin}')
+    none_got = [
+        'https://wall.alphacoders.com/finding_wallpapers.php',
+        'https://wall.alphacoders.com/search-no-results.php',
+    ]
+
     if resp[1] in none_got:
         return False
+    page_link = 'https://wall.alphacoders.com/search.php?search={}&page={}'
     if 'by_category.php' in resp[1]:
         page_link = str(resp[1]).replace('&amp;', '') + '&page={}'
         check_link = True
@@ -39,13 +42,13 @@ async def walld(strin):
     resp = resp[0]
     try:
         wall_num = list(resp.find('h1',{'class':'center title'}).text.split(' '))
-        
+
         for i in wall_num:
             try:
                 wall_num = int(i)
             except ValueError:
                 pass
-        
+
         page_num = resp.find('div', {'class': 'visible-xs'})
         page_num = page_num.find('input', {'class': 'form-control'})
         page_num = int(page_num['placeholder'].split(' ')[-1])
@@ -59,12 +62,9 @@ async def walld(strin):
             resp = await soup(page_link.format(strin, n))
         resp = resp[0]
     a_s = resp.find_all('a')
-    list_a_s = []
     tit_links = []
     r = ['thumb', '350', 'img', 'big.php?i', 'src', 'title']
-    for a_tag in a_s:
-        if all(d in str(a_tag) for d in r):
-            list_a_s.append(a_tag)
+    list_a_s = [a_tag for a_tag in a_s if all(d in str(a_tag) for d in r)]
     try:
         for df in list_a_s:
             imgi = df.find('img')
@@ -80,10 +80,7 @@ async def walld(strin):
             tit_links.append(p)
     except Exception:
         pass
-    if len(tit_links) ==  0:
-        return False
-    else:
-        return tit_links
+    return tit_links or False
 
 
 @run_async
@@ -92,20 +89,13 @@ def wall(update, context):
     msg = update.effective_message
     msg_id = update.effective_message.message_id
     args = context.args
-    q = " ".join(args)
-    if not q:
-        msg.reply_text("Give Some to Search!")
-        return
-    else:
+    if q := " ".join(args):
         try:
             wall_list = asyncio.run(walld(q))
         except:
             msg.reply_text("Error Occured!")
-            return 
-        if not wall_list:
-            msg.reply_text("No results found! Check your query.")
             return
-        else:
+        if wall_list:
             index = randint(0, len(wall_list) - 1) 
             wallpaper = wall_list[index]
             url_w = wallpaper[0]
@@ -124,6 +114,13 @@ def wall(update, context):
                     reply_to_message_id=msg_id,
                     timeout=60,
                 )
+
+        else:
+            msg.reply_text("No results found! Check your query.")
+            return
+    else:
+        msg.reply_text("Give Some to Search!")
+        return
 
 WALL_HANDLER = DisableAbleCommandHandler("wall", wall)
 dispatcher.add_handler(WALL_HANDLER)

@@ -21,45 +21,45 @@ def allow_connections(update, context) -> str:
     chat = update.effective_chat
     args = context.args
 
-    if chat.type != chat.PRIVATE:
-        if len(args) >= 1:
-            var = args[0]
-            if var == "no":
-                sql.set_allow_connect_to_chat(chat.id, False)
-                send_message(
-                    update.effective_message,
-                    "Connection has been disabled for this chat",
-                )
-            elif var == "yes":
-                sql.set_allow_connect_to_chat(chat.id, True)
-                send_message(
-                    update.effective_message,
-                    "Connection has been enabled for this chat",
-                )
-            else:
-                send_message(
-                    update.effective_message,
-                    "Please enter `yes` or `no`!",
-                    parse_mode=ParseMode.MARKDOWN,
-                )
-        else:
-            get_settings = sql.allow_connect_to_chat(chat.id)
-            if get_settings:
-                send_message(
-                    update.effective_message,
-                    "Connections to this group are *Allowed* for members!",
-                    parse_mode=ParseMode.MARKDOWN,
-                )
-            else:
-                send_message(
-                    update.effective_message,
-                    "Connection to this group are *Not Allowed* for members!",
-                    parse_mode=ParseMode.MARKDOWN,
-                )
-    else:
+    if chat.type == chat.PRIVATE:
         send_message(
             update.effective_message, "This command is for group only. Not in PM!"
         )
+
+    elif len(args) >= 1:
+        var = args[0]
+        if var == "no":
+            sql.set_allow_connect_to_chat(chat.id, False)
+            send_message(
+                update.effective_message,
+                "Connection has been disabled for this chat",
+            )
+        elif var == "yes":
+            sql.set_allow_connect_to_chat(chat.id, True)
+            send_message(
+                update.effective_message,
+                "Connection has been enabled for this chat",
+            )
+        else:
+            send_message(
+                update.effective_message,
+                "Please enter `yes` or `no`!",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+    else:
+        get_settings = sql.allow_connect_to_chat(chat.id)
+        if get_settings:
+            send_message(
+                update.effective_message,
+                "Connections to this group are *Allowed* for members!",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            send_message(
+                update.effective_message,
+                "Connection to this group are *Not Allowed* for members!",
+                parse_mode=ParseMode.MARKDOWN,
+            )
 
 
 @run_async
@@ -157,8 +157,9 @@ def connect_chat(update, context):
                 ]
             else:
                 buttons = []
-            conn = connected(context.bot, update, chat, user.id, need_admin=False)
-            if conn:
+            if conn := connected(
+                context.bot, update, chat, user.id, need_admin=False
+            ):
                 connectedchat = dispatcher.bot.getChat(conn)
                 text = "You are currently connected to *{}* (`{}`)".format(
                     connectedchat.title, conn
@@ -193,10 +194,11 @@ def connect_chat(update, context):
                         ]
                     )
                 text += "╘══「 Total {} Chats 」".format(
-                    str(len(gethistory)) + " (max)"
+                    f'{len(gethistory)} (max)'
                     if len(gethistory) == 5
                     else str(len(gethistory))
                 )
+
                 conn_hist = InlineKeyboardMarkup(buttons)
             elif buttons:
                 conn_hist = InlineKeyboardMarkup([buttons])
@@ -236,9 +238,7 @@ def connect_chat(update, context):
                         ),
                         parse_mode="markdown",
                     )
-                except BadRequest:
-                    pass
-                except Unauthorized:
+                except (BadRequest, Unauthorized):
                     pass
             else:
                 send_message(update.effective_message, "Connection failed!")
@@ -265,44 +265,41 @@ def disconnect_chat(update, context):
 def connected(bot, update, chat, user_id, need_admin=True):
     user = update.effective_user
 
-    if chat.type == chat.PRIVATE and sql.get_connected_chat(user_id):
+    if chat.type != chat.PRIVATE or not sql.get_connected_chat(user_id):
+        return False
+    conn_id = sql.get_connected_chat(user_id).chat_id
+    getstatusadmin = bot.get_chat_member(
+        conn_id, update.effective_message.from_user.id
+    )
+    isadmin = getstatusadmin.status in ("administrator", "creator")
+    ismember = getstatusadmin.status in ("member")
+    isallow = sql.allow_connect_to_chat(conn_id)
 
-        conn_id = sql.get_connected_chat(user_id).chat_id
-        getstatusadmin = bot.get_chat_member(
-            conn_id, update.effective_message.from_user.id
-        )
-        isadmin = getstatusadmin.status in ("administrator", "creator")
-        ismember = getstatusadmin.status in ("member")
-        isallow = sql.allow_connect_to_chat(conn_id)
-
-        if (
+    if (
             (isadmin)
             or (isallow and ismember)
             or (user.id in SUDO_USERS)
-            
+
         ):
-            if need_admin == True:
-                if (
-                    getstatusadmin.status in ("administrator", "creator")
-                    or user_id in SUDO_USERS
-                    
-                ):
-                    return conn_id
-                else:
-                    send_message(
-                        update.effective_message,
-                        "You must be an admin in the connected group!",
-                    )
-            else:
-                return conn_id
+        if need_admin != True:
+            return conn_id
+        if (
+            getstatusadmin.status in ("administrator", "creator")
+            or user_id in SUDO_USERS
+
+        ):
+            return conn_id
         else:
             send_message(
                 update.effective_message,
-                "The group changed the connection rights or you are no longer an admin.\nI've disconnected you.",
+                "You must be an admin in the connected group!",
             )
-            disconnect_chat(update, bot)
     else:
-        return False
+        send_message(
+            update.effective_message,
+            "The group changed the connection rights or you are no longer an admin.\nI've disconnected you.",
+        )
+        disconnect_chat(update, bot)
 
 
 CONN_HELP = """

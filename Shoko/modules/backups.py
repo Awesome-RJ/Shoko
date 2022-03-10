@@ -71,7 +71,7 @@ def import_data(update, context):
 
         # Check if backup is this chat
         try:
-            if data.get(str(chat.id)) == None:
+            if data.get(str(chat.id)) is None:
                 if conn:
                     text = "Backup comes from another chat, I can't return another chat to chat *{}*".format(
                         chat_name
