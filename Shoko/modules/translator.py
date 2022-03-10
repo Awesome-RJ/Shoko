@@ -18,11 +18,7 @@ from Shoko.modules.helper_funcs.alternate import typing_action, send_action
 @typing_action
 def totranslate(update, context):
     message = update.effective_message
-    problem_lang_code = []
-    for key in LANGUAGES:
-        if "-" in key:
-            problem_lang_code.append(key)
-
+    problem_lang_code = [key for key in LANGUAGES if "-" in key]
     try:
         if message.reply_to_message:
             args = update.effective_message.text.split(None, 1)
@@ -140,8 +136,7 @@ def spellcheck(update, context):
         for change in changes:
             start = change.get("From")
             end = change.get("To") + 1
-            suggestions = change.get("Suggestions")
-            if suggestions:
+            if suggestions := change.get("Suggestions"):
                 sugg_str = suggestions[0].get("Text")  # should look at this list more
                 curr_string += msg.text[prev_end:start] + sugg_str
                 prev_end = end

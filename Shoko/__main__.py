@@ -57,7 +57,7 @@ buttons = [
         text="About", callback_data="aboutmanu_"
         ),
     ]
-    
+
 ]
 
 buttons += [
@@ -65,7 +65,7 @@ buttons += [
         InlineKeyboardButton(
             text="Add to Group 👥", url="t.me/zoldycktmbot?startgroup=true"
         ),
-       
+
     ]
 ]
 
@@ -98,11 +98,11 @@ USER_SETTINGS = {}
 GDPR = []
 
 for module_name in ALL_MODULES:
-    imported_module = importlib.import_module("Shoko.modules." + module_name)
+    imported_module = importlib.import_module(f"Shoko.modules.{module_name}")
     if not hasattr(imported_module, "__mod_name__"):
         imported_module.__mod_name__ = imported_module.__name__
 
-    if not imported_module.__mod_name__.lower() in IMPORTED:
+    if imported_module.__mod_name__.lower() not in IMPORTED:
         IMPORTED[imported_module.__mod_name__.lower()] = imported_module
     else:
         raise Exception("Can't have two modules with the same name! Please change one")
@@ -222,15 +222,12 @@ def ping(server='google.com', count=1, wait_sec=1):
         total = lines[-2].split(',')[3].split()[1]
         loss = lines[-2].split(',')[2].split()[0]
         timing = lines[-1].split()[3].split('/')
-        ping_t = f"\nmin: {timing[0]}" \
+        return f"\nmin: {timing[0]}" \
                  f"\navg: {timing[1]}" \
                  f"\nmax: {timing[2]}" \
                  f"\ntotal: {total}" \
-                 f"\nloss: {loss}" 
-                 
-                 
-        return ping_t
-   
+                 f"\nloss: {loss}"
+
     except Exception as e:
         print(e)
         return None
@@ -320,13 +317,11 @@ def help_button(update, context):
         query.message.delete()
         context.bot.answer_callback_query(query.id)
     except Exception as excp:
-        if excp.message == "Message is not modified":
-            pass
-        elif excp.message == "Query_id_invalid":
-            pass
-        elif excp.message == "Message can't be deleted":
-            pass
-        else:
+        if excp.message not in [
+            "Message is not modified",
+            "Query_id_invalid",
+            "Message can't be deleted",
+        ]:
             query.message.edit_text(excp.message)
             LOGGER.exception("Exception in help buttons. %s", str(query.data))
 
@@ -536,25 +531,24 @@ def send_settings(chat_id, user_id, user=False):
                 parse_mode=ParseMode.MARKDOWN,
             )
 
+    elif CHAT_SETTINGS:
+        chat_name = dispatcher.bot.getChat(chat_id).title
+        dispatcher.bot.send_message(
+            user_id,
+            text="Which module would you like to check {}'s settings for?".format(
+                chat_name
+            ),
+            reply_markup=InlineKeyboardMarkup(
+                paginate_modules(0, CHAT_SETTINGS, "stngs", chat=chat_id)
+            ),
+        )
     else:
-        if CHAT_SETTINGS:
-            chat_name = dispatcher.bot.getChat(chat_id).title
-            dispatcher.bot.send_message(
-                user_id,
-                text="Which module would you like to check {}'s settings for?".format(
-                    chat_name
-                ),
-                reply_markup=InlineKeyboardMarkup(
-                    paginate_modules(0, CHAT_SETTINGS, "stngs", chat=chat_id)
-                ),
-            )
-        else:
-            dispatcher.bot.send_message(
-                user_id,
-                "Seems like there aren't any chat settings available :'(\nSend this "
-                "in a group chat you're admin in to find its current settings!",
-                parse_mode=ParseMode.MARKDOWN,
-            )
+        dispatcher.bot.send_message(
+            user_id,
+            "Seems like there aren't any chat settings available :'(\nSend this "
+            "in a group chat you're admin in to find its current settings!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
 
 @run_async
@@ -632,13 +626,11 @@ def settings_button(update, context):
         query.message.delete()
         context.bot.answer_callback_query(query.id)
     except Exception as excp:
-        if excp.message == "Message is not modified":
-            pass
-        elif excp.message == "Query_id_invalid":
-            pass
-        elif excp.message == "Message can't be deleted":
-            pass
-        else:
+        if excp.message not in [
+            "Message is not modified",
+            "Query_id_invalid",
+            "Message can't be deleted",
+        ]:
             query.message.edit_text(excp.message)
             LOGGER.exception("Exception in settings buttons. %s", str(query.data))
 
@@ -652,29 +644,28 @@ def get_settings(update, context):
     args = msg.text.split(None, 1)
 
     # ONLY send settings in PM
-    if chat.type != chat.PRIVATE:
-        if is_user_admin(chat, user.id):
-            text = "Click here to get this chat's settings, as well as yours."
-            msg.reply_text(
-                text,
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                text="Settings",
-                                url="t.me/{}?start=stngs_{}".format(
-                                    context.bot.username, chat.id
-                                ),
-                            )
-                        ]
-                    ]
-                ),
-            )
-        else:
-            text = "Click here to check your settings."
-
-    else:
+    if chat.type == chat.PRIVATE:
         send_settings(chat.id, user.id, True)
+
+    elif is_user_admin(chat, user.id):
+        text = "Click here to get this chat's settings, as well as yours."
+        msg.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            text="Settings",
+                            url="t.me/{}?start=stngs_{}".format(
+                                context.bot.username, chat.id
+                            ),
+                        )
+                    ]
+                ]
+            ),
+        )
+    else:
+        text = "Click here to check your settings."
 
 
 def migrate_chats(update, context):
@@ -727,8 +718,6 @@ def is_chat_allowed(update, context):
                 context.bot.leave_chat(chat_id)
             finally:
                 raise DispatcherHandlerStop
-    else:
-        pass
 
 
 def main():
@@ -783,6 +772,6 @@ def main():
 
 
 if __name__ == "__main__":
-    LOGGER.info("Successfully loaded modules: " + str(ALL_MODULES))
+    LOGGER.info(f"Successfully loaded modules: {str(ALL_MODULES)}")
     client.start(bot_token=TOKEN)
     main()

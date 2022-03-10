@@ -34,24 +34,22 @@ def slap(update, context):
 
     # get user who sent message
     if msg.from_user.username:
-        curr_user = "@" + escape_markdown(msg.from_user.username)
+        curr_user = f"@{escape_markdown(msg.from_user.username)}"
     else:
         curr_user = "[{}](tg://user?id={})".format(
             msg.from_user.first_name, msg.from_user.id
         )
 
-    user_id = extract_user(update.effective_message, args)
-    if user_id:
+    if user_id := extract_user(update.effective_message, args):
         slapped_user = context.bot.get_chat(user_id)
         user1 = curr_user
         if slapped_user.username:
-            user2 = "@" + escape_markdown(slapped_user.username)
+            user2 = f"@{escape_markdown(slapped_user.username)}"
         else:
             user2 = "[{}](tg://user?id={})".format(
                 slapped_user.first_name, slapped_user.id
             )
 
-    # if no target found, bot targets the sender
     else:
         user1 = "[{}](tg://user?id={})".format(context.bot.first_name, context.bot.id)
         user2 = curr_user
@@ -78,24 +76,22 @@ def hug(update, context):
 
     # get user who sent message
     if msg.from_user.username:
-        curr_user = "@" + escape_markdown(msg.from_user.username)
+        curr_user = f"@{escape_markdown(msg.from_user.username)}"
     else:
         curr_user = "[{}](tg://user?id={})".format(
             msg.from_user.first_name, msg.from_user.id
         )
 
-    user_id = extract_user(update.effective_message, args)
-    if user_id:
+    if user_id := extract_user(update.effective_message, args):
         hugged_user = context.bot.get_chat(user_id)
         user1 = curr_user
         if hugged_user.username:
-            user2 = "@" + escape_markdown(hugged_user.username)
+            user2 = f"@{escape_markdown(hugged_user.username)}"
         else:
             user2 = "[{}](tg://user?id={})".format(
                 hugged_user.first_name, hugged_user.id
             )
 
-    # if no target found, bot targets the sender
     else:
         user1 = "Awwh! [{}](tg://user?id={})".format(
             context.bot.first_name, context.bot.id
@@ -228,7 +224,7 @@ def snipe(update, context):
         try:
             context.bot.sendMessage(int(chat_id), str(to_send))
         except TelegramError:
-            LOGGER.warning("Couldn't send to group %s", str(chat_id))
+            LOGGER.warning("Couldn't send to group %s", chat_id)
             update.effective_message.reply_text(
                 "Couldn't send the message. Perhaps I'm not part of that group?"
             )
@@ -284,10 +280,7 @@ def copypasta(update, context):
             elif c.lower() == b_char:
                 reply_text += "🅱️"
             else:
-                if bool(random.getrandbits(1)):
-                    reply_text += c.upper()
-                else:
-                    reply_text += c.lower()
+                reply_text += c.upper() if bool(random.getrandbits(1)) else c.lower()
         reply_text += random.choice(emojis)
         message.reply_to_message.reply_text(reply_text)
 
@@ -338,11 +331,11 @@ def owo(update, context):
         reply_text = re.sub(r"ｎ([ａｅｉｏｕ])", r"ｎｙ\1", reply_text)
         reply_text = re.sub(r"N([aeiouAEIOU])", r"Ny\1", reply_text)
         reply_text = re.sub(r"Ｎ([ａｅｉｏｕＡＥＩＯＵ])", r"Ｎｙ\1", reply_text)
-        reply_text = re.sub(r"\!+", " " + random.choice(faces), reply_text)
-        reply_text = re.sub(r"！+", " " + random.choice(faces), reply_text)
+        reply_text = re.sub(r"\!+", f" {random.choice(faces)}", reply_text)
+        reply_text = re.sub(r"！+", f" {random.choice(faces)}", reply_text)
         reply_text = reply_text.replace("ove", "uv")
         reply_text = reply_text.replace("ｏｖｅ", "ｕｖ")
-        reply_text += " " + random.choice(faces)
+        reply_text += f" {random.choice(faces)}"
         message.reply_to_message.reply_text(reply_text)
 
 

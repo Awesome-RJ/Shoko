@@ -23,16 +23,12 @@ from Shoko.modules.helper_funcs.alternate import typing_action
 def about_me(update, context):
     message = update.effective_message  # type: Optional[Message]
     args = context.args
-    user_id = extract_user(message, args)
-
-    if user_id:
+    if user_id := extract_user(message, args):
         user = context.bot.get_chat(user_id)
     else:
         user = message.from_user
 
-    info = sql.get_user_me_info(user.id)
-
-    if info:
+    if info := sql.get_user_me_info(user.id):
         update.effective_message.reply_text(
             "*{}*:\n{}".format(user.first_name, escape_markdown(info)),
             parse_mode=ParseMode.MARKDOWN,
@@ -40,8 +36,9 @@ def about_me(update, context):
     elif message.reply_to_message:
         username = message.reply_to_message.from_user.first_name
         update.effective_message.reply_text(
-            username + "Information about him is currently unavailable !"
+            f'{username}Information about him is currently unavailable !'
         )
+
     else:
         update.effective_message.reply_text(
             "You have not added any information about yourself yet !"
@@ -75,15 +72,12 @@ def about_bio(update, context):
     message = update.effective_message  # type: Optional[Message]
     args = context.args
 
-    user_id = extract_user(message, args)
-    if user_id:
+    if user_id := extract_user(message, args):
         user = context.bot.get_chat(user_id)
     else:
         user = message.from_user
 
-    info = sql.get_user_bio(user.id)
-
-    if info:
+    if info := sql.get_user_bio(user.id):
         update.effective_message.reply_text(
             "*{}*:\n{}".format(user.first_name, escape_markdown(info)),
             parse_mode=ParseMode.MARKDOWN,

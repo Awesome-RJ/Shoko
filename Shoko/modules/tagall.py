@@ -23,27 +23,26 @@ from Shoko.modules.helper_funcs.alternate import typing_action
 @user_admin
 @typing_action
 def addtag(update, context):
-    chat = update.effective_chat  
-    user = update.effective_user 
+    chat = update.effective_chat
+    user = update.effective_user
     message = update.effective_message
-    args = context.args 
+    args = context.args
     user_id, reason = extract_user_and_text(message, args)
     if not user_id:
         message.reply_text("You don't seem to be referring to a user.")
-        return 
+        return
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user")
-            return 
-        else:
+        if excp.message != "User not found":
             raise
+        message.reply_text("I can't seem to find this user")
+        return
     if user_id == context.bot.id:
         message.reply_text("how I supposed to tag myself")
         return 
-    
-    chat_id = str(chat.id)[1:] 
+
+    chat_id = str(chat.id)[1:]
     tagall_list = list(REDIS.sunion(f'tagall2_{chat_id}'))
     match_user = mention_html(member.user.id, member.user.first_name)
     if match_user in tagall_list:
@@ -72,26 +71,25 @@ def addtag(update, context):
 @user_admin
 @typing_action
 def removetag(update, context):
-    chat = update.effective_chat  
-    user = update.effective_user 
+    chat = update.effective_chat
+    user = update.effective_user
     message = update.effective_message
-    args = context.args 
+    args = context.args
     user_id, reason = extract_user_and_text(message, args)
     if not user_id:
         message.reply_text("You don't seem to be referring to a user.")
-        return 
+        return
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user")
-            return 
-        else:
+        if excp.message != "User not found":
             raise
+        message.reply_text("I can't seem to find this user")
+        return
     if user_id == context.bot.id:
         message.reply_text("how I supposed to tag or untag myself")
-        return 
-    chat_id = str(chat.id)[1:] 
+        return
+    chat_id = str(chat.id)[1:]
     tagall_list = list(REDIS.sunion(f'tagall2_{chat_id}'))
     match_user = mention_html(member.user.id, member.user.first_name)
     if match_user not in tagall_list:
@@ -113,37 +111,35 @@ def removetag(update, context):
 @run_async
 def tagg_all_button(update, context):
     query = update.callback_query
-    chat = update.effective_chat  
+    chat = update.effective_chat
     splitter = query.data.split('=')
     query_match = splitter[0]
     user_id = splitter[1]
-    if query_match == "tagall_accept":
-        if query.from_user.id == int(user_id):
-            member = chat.get_member(int(user_id))
-            chat_id = str(chat.id)[1:]
-            REDIS.sadd(f'tagall2_{chat_id}', mention_html(member.user.id, member.user.first_name))
-            query.message.edit_text(
-                "{} is accepted! to add yourself {}'s tag list.".format(mention_html(member.user.id, member.user.first_name),
-                                                                        chat.title),
-                parse_mode=ParseMode.HTML
-            )
-            
-        else:
-            context.bot.answer_callback_query(query.id,
-                                              text="You're not the user being added in tag list!"
-                                              )
+    if query_match == "tagall_accept" and query.from_user.id == int(user_id):
+        member = chat.get_member(int(user_id))
+        chat_id = str(chat.id)[1:]
+        REDIS.sadd(f'tagall2_{chat_id}', mention_html(member.user.id, member.user.first_name))
+        query.message.edit_text(
+            "{} is accepted! to add yourself {}'s tag list.".format(mention_html(member.user.id, member.user.first_name),
+                                                                    chat.title),
+            parse_mode=ParseMode.HTML
+        )
+
+    elif (
+        query_match == "tagall_accept"
+        or query_match == "tagall_dicline"
+        and query.from_user.id != int(user_id)
+    ):
+        context.bot.answer_callback_query(query.id,
+                                          text="You're not the user being added in tag list!"
+                                          )
     elif query_match == "tagall_dicline":
-        if query.from_user.id == int(user_id):
-            member = chat.get_member(int(user_id))
-            query.message.edit_text(
-                "{} is deslined! to add yourself {}'s tag list.".format(mention_html(member.user.id, member.user.first_name),
-                                                                        chat.title),
-                parse_mode=ParseMode.HTML
-            )
-        else:
-            context.bot.answer_callback_query(query.id,
-                                              text="You're not the user being added in tag list!"
-                                              )           
+        member = chat.get_member(int(user_id))
+        query.message.edit_text(
+            "{} is deslined! to add yourself {}'s tag list.".format(mention_html(member.user.id, member.user.first_name),
+                                                                    chat.title),
+            parse_mode=ParseMode.HTML
+        )           
             
 @run_async
 @typing_action
@@ -192,21 +188,18 @@ def tagme(update, context):
 @user_admin
 @typing_action
 def tagall(update, context):
-    chat = update.effective_chat 
-    user = update.effective_user 
+    chat = update.effective_chat
+    user = update.effective_user
     message = update.effective_message
     args = context.args
     query = " ".join(args)
     if not query:
         message.reply_text("Please give a reason why are you want to tag all!")
         return
-    chat_id = str(chat.id)[1:] 
-    tagall = list(REDIS.sunion(f'tagall2_{chat_id}'))
-    tagall.sort()
-    tagall = ", ".join(tagall)
-    
-    if tagall:
-        tagall_reason = query 
+    chat_id = str(chat.id)[1:]
+    tagall = sorted(REDIS.sunion(f'tagall2_{chat_id}'))
+    if tagall := ", ".join(tagall):
+        tagall_reason = query
         if message.reply_to_message:
             message.reply_to_message.reply_text(
                 "{}"
